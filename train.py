@@ -29,7 +29,7 @@ def main(k: int, lmbda: float):
     )
 
     trainer_args = SoundStormTrainerArgs(
-        run_name=f"layer-11-km{k}-lmbda-{lmbda}-ddp",
+        run_name=f"km-{k}-lmbda-{lmbda}-ddp",
         conditioning_tokens_train_dataset_paths=[
             f"/workspace/data/units/wavlm/layer-11/km-{k}/lmbda-{lmbda}/train-clean-100.h5",
             f"/workspace/data/units/wavlm/layer-11/km-{k}/lmbda-{lmbda}/train-clean-360.h5",
