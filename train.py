@@ -5,11 +5,8 @@ from soundstorm.config import (
 )
 from soundstorm.trainer import train
 
-K = 500
-lmbda = 0
-
 model_args = SoundStormModelArgs(
-    num_conditioning_categories=K,
+    num_conditioning_categories=100,
     num_codec_levels=8,
     num_codec_categories_per_level=1024,
     transformer=TransformerModelArgs(
@@ -26,19 +23,19 @@ model_args = SoundStormModelArgs(
 
 trainer_args = SoundStormTrainerArgs(
     # run name
-    run_name=f"layer-11-km{K}-lmbda-{lmbda}",
+    run_name=f"layer-11-km100-lmbda-0-ddp",
     # dataloader
     conditioning_tokens_train_dataset_paths=[
-        f"/mnt/wsl/nvme/code/wavlm-quantize-abx/output/layer-11/km-{K}/lmbda-{lmbda}/units/train-clean-100.h5"
+        f"/workspace/data/units/train-clean-100.h5",
     ],
     conditioning_tokens_val_dataset_paths=[
-        f"/mnt/wsl/nvme/code/wavlm-quantize-abx/output/layer-11/km-{K}/lmbda-{lmbda}/units/dev-clean.h5"
+        f"/workspace/data/units/dev-clean.h5",
     ],
     codec_tokens_train_dataset_paths=[
-        "/mnt/wsl/nvme/data/LibriSpeech/speechtokenizer/train-clean-100.h5"
+        "/workspace/data/speechtokenizer/train-clean-100.h5",
     ],
     codec_tokens_val_dataset_paths=[
-        "/mnt/wsl/nvme/data/LibriSpeech/speechtokenizer/dev-clean.h5"
+        "/workspace/data/speechtokenizer/dev-clean.h5",
     ],
     batch_size=6,
     num_workers=63,
@@ -51,8 +48,11 @@ trainer_args = SoundStormTrainerArgs(
     weight_decay=0.01,
     # pl.trainer
     accelerator="gpu",
+    precision="bf16-mixed",
+    strategy="ddp",
+    devices=2,
     fast_dev_run=False,
-    max_epochs=None,
+    max_epochs=-1,
     min_epochs=None,
     max_steps=-1,
     min_steps=None,
@@ -66,6 +66,10 @@ trainer_args = SoundStormTrainerArgs(
     # decoding
     steps_per_level=[16, 8, 4, 2, 1, 1, 1, 1],
     maskgit_initial_temp=3.0,
+    # log samples
+    num_samples_to_log=3,
+    speechtokenizer_config_path="/workspace/data/speechtokenizer/speechtokenizer_hubert_avg_config.json",
+    speechtokenizer_checkpoint_path="/workspace/data/speechtokenizer/SpeechTokenizer.pt",
 )
 
 

@@ -14,6 +14,19 @@ from soundstorm.dataset import SoundStormTokenizedDataset
 from soundstorm.model.soundstorm import SoundStormModel
 from soundstorm.scheduler import LinearRampCosineDecayScheduler
 
+# Define speechtokenizer globally
+speechtokenizer = None
+
+def get_speechtokenizer(train_args):
+    global speechtokenizer
+    if speechtokenizer is None:
+        # Force float32 precision when loading the model
+        with torch.amp.autocast(device_type='cuda', enabled=False):
+            speechtokenizer = SpeechTokenizer.load_from_checkpoint(
+                train_args.speechtokenizer_config_path,
+                train_args.speechtokenizer_checkpoint_path,
+            ).cpu().float()  # Explicitly set to float32
+    return speechtokenizer
 
 class SoundStormLitModel(pl.LightningModule):
     def __init__(
@@ -27,50 +40,62 @@ class SoundStormLitModel(pl.LightningModule):
 
     def training_step(self, batch: SoundStormTokenizedBatch, batch_idx):
         loss = self.model(batch)
-        self.log("train/loss", loss, prog_bar=True, batch_size=batch.batch_size)
+        self.log("train/loss", loss, prog_bar=True, batch_size=batch.batch_size, sync_dist=True)
         return loss
 
     def validation_step(self, batch: SoundStormTokenizedBatch, batch_idx):
+        global speechtokenizer  # Use the global speechtokenizer
+
         loss = self.model(batch)
-        self.log("val/loss", loss, prog_bar=True, batch_size=batch.batch_size)
+        self.log("val/loss", loss, prog_bar=True, batch_size=batch.batch_size, sync_dist=True)
 
         # log audio samples
-        MAX_SAMPLES_TO_LOG = 3
-        if batch_idx == 0:
-            for i, item in zip(range(MAX_SAMPLES_TO_LOG), batch):
+        if batch_idx == 0 and self.train_args.num_samples_to_log > 0:
+            # Store original device
+            device = next(self.parameters()).device
+
+            # Generate codes on the GPU
+            all_codes = []
+            for i, item in zip(range(self.train_args.num_samples_to_log), batch):
                 try:
-                    conditioning_tokens = self.model.tokenizer.decode(
-                        item
-                    ).conditioning_tokens.cuda()
+                    # Get tokens on GPU
+                    item = self.model.tokenizer.decode(item=item)
+                    conditioning_tokens = item.conditioning_tokens.to(device)
+
+                    # Generate codes on GPU
                     codes = self.model.generate(
                         conditioning_tokens=conditioning_tokens,
                         steps_per_level=self.train_args.steps_per_level,
                         maskgit_initial_temp=self.train_args.maskgit_initial_temp,
                     )
-                    codes = codes.permute(1, 0).unsqueeze(1).cpu()
-                    speechtokenizer = self.get_speechtokenizer()
-                    wav = speechtokenizer.decode(codes)[0, 0].cpu().numpy()
+
+                    all_codes.append(codes)
+                except Exception as e:
+                    print(f"Failed to generate sample {i}: {str(e)}")
+
+            # Move self to CPU
+            self.to("cpu")
+            # Move speechtokenizer to GPU
+            speechtokenizer = get_speechtokenizer(self.train_args).cuda()
+
+            for i, codes in zip(range(self.train_args.num_samples_to_log), all_codes):
+                try:
+                    # Decode codes on GPU
+                    codes = codes.permute(1, 0).unsqueeze(1).cuda()
+                    with torch.amp.autocast(device_type='cuda', enabled=False):
+                        wav = speechtokenizer.decode(codes)[0, 0]
+
+                    # Move waveform to CPU and log
+                    wav = wav.cpu().numpy()
                     audio = wandb.Audio(wav, sample_rate=16000, caption=f"sample_{i}")
                     self.logger.experiment.log({f"audio_sample_{i}": audio})
                 except Exception as e:
-                    print(f"Failed to log audio sample {i}: {str(e)}")
-                    print(f"Audio array shape: {wav.shape}, dtype: {wav.dtype}")
-                    print(f"Audio range: min={wav.min()}, max={wav.max()}")
+                    print(f"Failed to log sample {i}: {str(e)}")
 
-    def get_speechtokenizer(self):
-        if not hasattr(self, "_speechtokenizer"):
-            self._speechtokenizer = SpeechTokenizer.load_from_checkpoint(
-                "checkpoints/speechtokenizer/config.json",
-                "checkpoints/speechtokenizer/SpeechTokenizer.pt",
-            ).to("cpu")
-        return self._speechtokenizer
-
-    def on_save_checkpoint(self, checkpoint):
-        # safely remove speechtokenizer from checkpoint
-        if hasattr(self, "_speechtokenizer"):
-            if "state_dict" in checkpoint:
-                if "_speechtokenizer" in checkpoint["state_dict"]:
-                    del checkpoint["state_dict"]["_speechtokenizer"]
+            
+            # Move self and speechtokenizer back to original device
+            speechtokenizer.cpu()
+            self.to(device)
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
@@ -154,7 +179,9 @@ def train(model_args: SoundStormModelArgs, trainer_args: SoundStormTrainerArgs):
     )
 
     # Get the checkpoint directory path
-    checkpoint_dir = Path(logger.experiment.dir)
+    checkpoint_dir = Path(f"./checkpoints/{trainer_args.run_name}")
+
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     # Save the model args and trainer args
     model_args.save(checkpoint_dir / "model_args.json")
@@ -199,6 +226,9 @@ def train(model_args: SoundStormModelArgs, trainer_args: SoundStormTrainerArgs):
             lr_monitor_callback,
         ],  # Add callbacks here
         accelerator=trainer_args.accelerator,
+        precision=trainer_args.precision,
+        strategy=trainer_args.strategy,
+        devices=trainer_args.devices,
         fast_dev_run=trainer_args.fast_dev_run,
         max_epochs=trainer_args.max_epochs,
         min_epochs=trainer_args.min_epochs,

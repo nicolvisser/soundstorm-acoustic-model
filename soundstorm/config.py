@@ -24,6 +24,9 @@ class SoundStormTrainerArgs(Serializable):
     lr_final: float
     # pl.trainer
     accelerator: str
+    precision: str
+    strategy: str
+    devices: int
     fast_dev_run: bool
     max_epochs: Optional[int]
     min_epochs: Optional[int]
@@ -39,6 +42,11 @@ class SoundStormTrainerArgs(Serializable):
     # decoding
     steps_per_level: List[int]
     maskgit_initial_temp: float
+    # log samples
+    num_samples_to_log: int
+    speechtokenizer_config_path: str
+    speechtokenizer_checkpoint_path: str
+
 
 
 @dataclass
