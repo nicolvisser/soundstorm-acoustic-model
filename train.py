@@ -44,7 +44,7 @@ def main(k: int, lmbda: float):
         codec_tokens_val_dataset_paths=[
             f"/workspace/data/speechtokenizer/dev-clean.h5",
         ],
-        batch_size=6,
+        batch_size=8,
         num_workers=63,
         lr_max=1e-4,
         warmup_steps=5000,
