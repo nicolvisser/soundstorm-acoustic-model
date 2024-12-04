@@ -48,7 +48,7 @@ def main(k: int, lmbda: float):
         num_workers=63,
         lr_max=1e-4,
         warmup_steps=1000,
-        decay_steps=19000,
+        decay_steps=9000,
         lr_final=1e-6,
         betas=(0.9, 0.999),
         weight_decay=0.01,
