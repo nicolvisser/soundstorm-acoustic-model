@@ -1,6 +1,11 @@
 """
-This file contains a transformer and rotary position embeddings (RoPE) implementation based on Mistral's implementation:
+This module contains a transformer and rotary positional embedding (RoPE) implementation based on Mistral's implementation, but stripped down:
 https://github.com/mistralai/mistral-inference
+I think their implementation using xformers and RoPE is super efficient and neat.
+Technically, the SoundStorm authors used a conformer architecture.
+Using convolutional layers together with the no-batch-dimension trick from xformers would overcomplicate things.
+I am also unsure if RoPE is compatible with convolutions.
+So I went with the same feed-forward network as in Mistral and I think it works fine.
 """
 
 import operator

@@ -1,5 +1,5 @@
 """
-This file contains an implementation of rotary position embeddings (RoPE) from Mistral's implementation:
+This file contains an implementation of rotary positional embedding (RoPE) from Mistral's implementation:
 https://github.com/mistralai/mistral-inference
 """
 

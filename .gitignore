@@ -4,3 +4,4 @@ __pycache__
 checkpoints/
 wandb/
 *.wav
+test_*.py

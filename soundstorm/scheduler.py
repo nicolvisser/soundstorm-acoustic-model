@@ -1,3 +1,9 @@
+"""
+This module implements `LinearRampCosineDecayScheduler`, a custom PyTorch 
+learning rate scheduler that linearly increases the learning rate, then 
+applies cosine decay, and finally maintains a constant rate.
+"""
+
 import math
 
 import torch.optim as optim
@@ -7,7 +13,7 @@ from torch.optim.optimizer import Optimizer
 class LinearRampCosineDecayScheduler(optim.lr_scheduler._LRScheduler):
     """
     Custom learning rate scheduler that increases linearly for n_linear_steps,
-    then decays cosine annealing for n_decay_steps,
+    then decays with cosine annealing for n_decay_steps,
     then stays at lr_final for the remaining steps.
 
     Args:

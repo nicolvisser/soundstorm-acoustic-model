@@ -17,16 +17,22 @@ from soundstorm.scheduler import LinearRampCosineDecayScheduler
 # Define speechtokenizer globally
 speechtokenizer = None
 
+
 def get_speechtokenizer(train_args):
     global speechtokenizer
     if speechtokenizer is None:
         # Force float32 precision when loading the model
-        with torch.amp.autocast(device_type='cuda', enabled=False):
-            speechtokenizer = SpeechTokenizer.load_from_checkpoint(
-                train_args.speechtokenizer_config_path,
-                train_args.speechtokenizer_checkpoint_path,
-            ).cpu().float()  # Explicitly set to float32
+        with torch.amp.autocast(device_type="cuda", enabled=False):
+            speechtokenizer = (
+                SpeechTokenizer.load_from_checkpoint(
+                    train_args.speechtokenizer_config_path,
+                    train_args.speechtokenizer_checkpoint_path,
+                )
+                .cpu()
+                .float()
+            )  # Explicitly set to float32
     return speechtokenizer
+
 
 class SoundStormLitModel(pl.LightningModule):
     def __init__(
@@ -40,14 +46,22 @@ class SoundStormLitModel(pl.LightningModule):
 
     def training_step(self, batch: SoundStormTokenizedBatch, batch_idx):
         loss = self.model(batch)
-        self.log("train/loss", loss, prog_bar=True, batch_size=batch.batch_size, sync_dist=True)
+        self.log(
+            "train/loss",
+            loss,
+            prog_bar=True,
+            batch_size=batch.batch_size,
+            sync_dist=True,
+        )
         return loss
 
     def validation_step(self, batch: SoundStormTokenizedBatch, batch_idx):
         global speechtokenizer  # Use the global speechtokenizer
 
         loss = self.model(batch)
-        self.log("val/loss", loss, prog_bar=True, batch_size=batch.batch_size, sync_dist=True)
+        self.log(
+            "val/loss", loss, prog_bar=True, batch_size=batch.batch_size, sync_dist=True
+        )
 
         # log audio samples
         if batch_idx == 0 and self.train_args.num_samples_to_log > 0:
@@ -82,7 +96,7 @@ class SoundStormLitModel(pl.LightningModule):
                 try:
                     # Decode codes on GPU
                     codes = codes.permute(1, 0).unsqueeze(1).cuda()
-                    with torch.amp.autocast(device_type='cuda', enabled=False):
+                    with torch.amp.autocast(device_type="cuda", enabled=False):
                         wav = speechtokenizer.decode(codes)[0, 0]
 
                     # Move waveform to CPU and log
@@ -92,7 +106,6 @@ class SoundStormLitModel(pl.LightningModule):
                 except Exception as e:
                     print(f"Failed to log sample {i}: {str(e)}")
 
-            
             # Move self and speechtokenizer back to original device
             speechtokenizer.cpu()
             self.to(device)
@@ -226,14 +239,11 @@ def train(model_args: SoundStormModelArgs, trainer_args: SoundStormTrainerArgs):
             lr_monitor_callback,
         ],  # Add callbacks here
         accelerator=trainer_args.accelerator,
-        precision=trainer_args.precision,
         strategy=trainer_args.strategy,
         devices=trainer_args.devices,
+        precision=trainer_args.precision,
         fast_dev_run=trainer_args.fast_dev_run,
-        max_epochs=trainer_args.max_epochs,
-        min_epochs=trainer_args.min_epochs,
         max_steps=trainer_args.max_steps,
-        min_steps=trainer_args.min_steps,
         val_check_interval=trainer_args.val_check_interval,
         check_val_every_n_epoch=trainer_args.check_val_every_n_epoch,
         log_every_n_steps=trainer_args.log_every_n_steps,
