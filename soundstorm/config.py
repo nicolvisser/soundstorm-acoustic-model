@@ -118,11 +118,11 @@ class SoundStormTrainerArgs(Serializable):
     Each key must map to a numpy array of shape (t,Q), where t is the sequence length.
     Keys must correspond to the keys in the validation conditioning tokens.
     """
-    batch_size: int = 64
+    batch_size: int
     """
     Batch size.
     """
-    num_workers: int = 63
+    num_workers: int
     """
     Number of CPU workers for data loading.
     """
@@ -211,7 +211,9 @@ class SoundStormTrainerArgs(Serializable):
     Set to 0 if you don't want to log any samples.
     Then you don't need to specify the other logging parameters.
     """
-    steps_per_level: Optional[List[int]] = [16, 8, 4, 2, 1, 1, 1, 1]
+    steps_per_level: Optional[List[int]] = field(
+        default_factory=lambda: [16, 8, 4, 2, 1, 1, 1, 1]
+    )
     """
     Number of MaskGIT decoding steps per RVQ level when logging samples.
     See SoundStorm paper for details.

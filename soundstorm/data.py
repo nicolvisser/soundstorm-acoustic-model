@@ -84,14 +84,21 @@ class SoundStormTokenizedItem:
     """
 
     tokens: torch.Tensor  # (1+t, 1+Q)
-    mask_level_idx: int  # between 1 and Q-1
+    mask_level_idx: int  # between 0 and Q-1
     mask: torch.Tensor  # (1+t,)
     target: Optional[torch.Tensor]  # (m,)
+
+    @property
+    def Q(self):
+        """
+        The number of RVQ levels used by the codec.
+        """
+        return self.tokens.shape[1] - 1
 
     def __post_init__(self):
         assert self.tokens.ndim == 2  # 2D
         assert isinstance(self.mask_level_idx, int)
-        assert 1 <= self.mask_level_idx <= self.Q - 1
+        assert 0 <= self.mask_level_idx <= self.Q - 1
         assert self.mask.ndim == 1  # 1D
         assert self.target is None or self.target.ndim == 1  # 1D
         assert self.target is None or self.mask.sum() == len(
