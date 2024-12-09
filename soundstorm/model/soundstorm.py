@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 from typing import List
 
 import torch
@@ -85,6 +86,17 @@ class SoundStormModel(nn.Module):
         loss /= total_masked_tokens
 
         return loss
+
+    @classmethod
+    def from_model_dir(cls, model_dir: str):
+        model_dir = Path(model_dir)
+        checkpoint_path: Path = model_dir / "best.pth"
+        model_args_path: Path = model_dir / "model_args.json"
+        assert checkpoint_path.exists(), checkpoint_path
+        assert model_args_path.exists(), model_args_path
+        model = cls(SoundStormModelArgs.load(model_args_path))
+        model.load_state_dict(torch.load(checkpoint_path))
+        return model
 
     @torch.inference_mode()
     def predict(self, item: SoundStormTokenizedItem) -> List[torch.Tensor]:
