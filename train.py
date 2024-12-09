@@ -30,7 +30,7 @@ def main(k: int, lmbda: float):
             f"/workspace/data/speechtokenizer/dev-clean.h5",
         ],
         batch_size=64,  # no benefit when exactly 2**n when using xformers
-        num_workers=63,
+        num_workers=0,
         warmup_steps=1000,
         lr_max=1e-4,
         decay_steps=9000,
