@@ -40,6 +40,7 @@ def main(k: int, lmbda: float):
         maskgit_initial_temp=1.0,
         speechtokenizer_config_path="/workspace/data/speechtokenizer/speechtokenizer_hubert_avg_config.json",
         speechtokenizer_checkpoint_path="/workspace/data/speechtokenizer/SpeechTokenizer.pt",
+        val_check_interval=0.5,
         # use default values for the rest, see config.py
     )
 
