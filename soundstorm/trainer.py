@@ -211,12 +211,13 @@ def train(model_args: SoundStormModelArgs, trainer_args: SoundStormTrainerArgs):
     # Add callbacks for checkpointing and early stopping
     checkpoint_callback = ModelCheckpoint(
         dirpath=checkpoint_dir,
-        monitor="val/loss",
-        mode="min",
-        save_top_k=1,
-        save_last=False,
         filename="best",
+        monitor="val/loss",
         verbose=True,
+        save_last=False,
+        save_top_k=1,
+        save_weights_only=True,
+        mode="min",
     )
 
     if trainer_args.early_stopping_patience is not None:
